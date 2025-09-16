@@ -1,0 +1,112 @@
+package main
+
+import (
+	"bytes"
+	_ "embed"
+	"image"
+	"image/color"
+	_ "image/png"
+	"log"
+
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
+)
+
+//go:embed donut.png
+var donutPNG []byte
+
+const (
+	screenWidth  = 1920
+	screenHeight = 1080
+	donutScale   = 0.5 // Configuration: scale factor for the donut (1.0 = original size, 2.0 = double size, etc.)
+)
+
+type Game struct {
+	donutImage    *ebiten.Image
+	donutWidth    float64
+	donutHeight   float64
+	x, y          float64
+	vx, vy        float64
+}
+
+func (g *Game) Update() error {
+	// Check for escape key to exit
+	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+		return ebiten.Termination
+	}
+
+	// Update position
+	g.x += g.vx
+	g.y += g.vy
+
+	// Bounce off edges
+	if g.x <= 0 || g.x >= screenWidth-g.donutWidth {
+		g.vx = -g.vx
+		if g.x <= 0 {
+			g.x = 0
+		} else {
+			g.x = screenWidth - g.donutWidth
+		}
+	}
+	if g.y <= 0 || g.y >= screenHeight-g.donutHeight {
+		g.vy = -g.vy
+		if g.y <= 0 {
+			g.y = 0
+		} else {
+			g.y = screenHeight - g.donutHeight
+		}
+	}
+
+	return nil
+}
+
+func (g *Game) Draw(screen *ebiten.Image) {
+	screen.Fill(color.RGBA{0, 0, 0, 255}) // Black background
+	
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Scale(donutScale, donutScale)
+	op.GeoM.Translate(g.x, g.y)
+	screen.DrawImage(g.donutImage, op)
+}
+
+func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
+	return screenWidth, screenHeight
+}
+
+func loadDonutImage() (*ebiten.Image, error) {
+	img, _, err := image.Decode(bytes.NewReader(donutPNG))
+	if err != nil {
+		return nil, err
+	}
+	return ebiten.NewImageFromImage(img), nil
+}
+
+func main() {
+	donutImage, err := loadDonutImage()
+	if err != nil {
+		log.Fatal("Failed to load donut.png:", err)
+	}
+
+	// Calculate scaled dimensions
+	bounds := donutImage.Bounds()
+	donutWidth := float64(bounds.Dx()) * donutScale
+	donutHeight := float64(bounds.Dy()) * donutScale
+
+	game := &Game{
+		donutImage:  donutImage,
+		donutWidth:  donutWidth,
+		donutHeight: donutHeight,
+		x:           100,
+		y:           100,
+		vx:          3,
+		vy:          2,
+	}
+
+	ebiten.SetWindowSize(screenWidth, screenHeight)
+	ebiten.SetWindowTitle("Donut Screensaver")
+	ebiten.SetFullscreen(true)
+
+	if err := ebiten.RunGame(game); err != nil {
+		log.Fatal(err)
+	}
+}
