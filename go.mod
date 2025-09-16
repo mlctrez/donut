@@ -1,6 +1,6 @@
 module github.com/mlctrez/donut
 
-go 1.21
+go 1.25
 
 require github.com/hajimehoshi/ebiten/v2 v2.6.3
 
