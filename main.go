@@ -20,17 +20,17 @@ const (
 )
 
 type Game struct {
-	donutImage    *ebiten.Image
-	donutWidth    float64
-	donutHeight   float64
-	x, y          float64
-	vx, vy        float64
-	screenWidth   int
-	screenHeight  int
+	donutImage   *ebiten.Image
+	donutWidth   float64
+	donutHeight  float64
+	x, y         float64
+	vx, vy       float64
+	screenWidth  int
+	screenHeight int
 }
 
 func (g *Game) Update() error {
-	// Check for escape key to exit
+	// Check for the escape key to exit
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		return ebiten.Termination
 	}
@@ -61,8 +61,8 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	screen.Fill(color.RGBA{0, 0, 0, 255}) // Black background
-	
+	screen.Fill(color.RGBA{A: 255}) // Black background
+
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Scale(donutScale, donutScale)
 	op.GeoM.Translate(g.x, g.y)
@@ -70,7 +70,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
-	// Update screen dimensions when window is resized
+	// Update screen dimensions when the window is resized
 	g.screenWidth = outsideWidth
 	g.screenHeight = outsideHeight
 	return outsideWidth, outsideHeight
@@ -104,8 +104,8 @@ func main() {
 		y:            100,
 		vx:           3,
 		vy:           2,
-		screenWidth:  800,  // Default width, will be updated by Layout
-		screenHeight: 600,  // Default height, will be updated by Layout
+		screenWidth:  800, // Default width, will be updated by Layout
+		screenHeight: 600, // Default height, will be updated by Layout
 	}
 
 	// Don't set a specific window size - let it use the system default or fullscreen
