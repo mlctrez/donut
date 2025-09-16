@@ -16,9 +16,7 @@ import (
 var donutPNG []byte
 
 const (
-	screenWidth  = 1920
-	screenHeight = 1080
-	donutScale   = 0.5 // Configuration: scale factor for the donut (1.0 = original size, 2.0 = double size, etc.)
+	donutScale = 0.5 // Configuration: scale factor for the donut (1.0 = original size, 2.0 = double size, etc.)
 )
 
 type Game struct {
@@ -27,6 +25,8 @@ type Game struct {
 	donutHeight   float64
 	x, y          float64
 	vx, vy        float64
+	screenWidth   int
+	screenHeight  int
 }
 
 func (g *Game) Update() error {
@@ -40,20 +40,20 @@ func (g *Game) Update() error {
 	g.y += g.vy
 
 	// Bounce off edges
-	if g.x <= 0 || g.x >= screenWidth-g.donutWidth {
+	if g.x <= 0 || g.x >= float64(g.screenWidth)-g.donutWidth {
 		g.vx = -g.vx
 		if g.x <= 0 {
 			g.x = 0
 		} else {
-			g.x = screenWidth - g.donutWidth
+			g.x = float64(g.screenWidth) - g.donutWidth
 		}
 	}
-	if g.y <= 0 || g.y >= screenHeight-g.donutHeight {
+	if g.y <= 0 || g.y >= float64(g.screenHeight)-g.donutHeight {
 		g.vy = -g.vy
 		if g.y <= 0 {
 			g.y = 0
 		} else {
-			g.y = screenHeight - g.donutHeight
+			g.y = float64(g.screenHeight) - g.donutHeight
 		}
 	}
 
@@ -70,7 +70,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return screenWidth, screenHeight
+	// Update screen dimensions when window is resized
+	g.screenWidth = outsideWidth
+	g.screenHeight = outsideHeight
+	return outsideWidth, outsideHeight
 }
 
 func loadDonutImage() (*ebiten.Image, error) {
@@ -92,17 +95,20 @@ func main() {
 	donutWidth := float64(bounds.Dx()) * donutScale
 	donutHeight := float64(bounds.Dy()) * donutScale
 
+	// Start with default dimensions - Layout method will update with actual window size
 	game := &Game{
-		donutImage:  donutImage,
-		donutWidth:  donutWidth,
-		donutHeight: donutHeight,
-		x:           100,
-		y:           100,
-		vx:          3,
-		vy:          2,
+		donutImage:   donutImage,
+		donutWidth:   donutWidth,
+		donutHeight:  donutHeight,
+		x:            100,
+		y:            100,
+		vx:           3,
+		vy:           2,
+		screenWidth:  800,  // Default width, will be updated by Layout
+		screenHeight: 600,  // Default height, will be updated by Layout
 	}
 
-	ebiten.SetWindowSize(screenWidth, screenHeight)
+	// Don't set a specific window size - let it use the system default or fullscreen
 	ebiten.SetWindowTitle("Donut Screensaver")
 	ebiten.SetFullscreen(true)
 
