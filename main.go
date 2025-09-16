@@ -25,6 +25,8 @@ type Game struct {
 	donutHeight  float64
 	x, y         float64
 	vx, vy       float64
+	rotation     float64 // Rotation angle in radians
+	rotationSpeed float64 // Rotation speed in radians per frame
 	screenWidth  int
 	screenHeight int
 }
@@ -38,6 +40,9 @@ func (g *Game) Update() error {
 	// Update position
 	g.x += g.vx
 	g.y += g.vy
+
+	// Update rotation
+	g.rotation += g.rotationSpeed
 
 	// Bounce off edges
 	if g.x <= 0 || g.x >= float64(g.screenWidth)-g.donutWidth {
@@ -64,8 +69,21 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	screen.Fill(color.RGBA{A: 255}) // Black background
 
 	op := &ebiten.DrawImageOptions{}
+	
+	// Apply transformations in the correct order for rotation around center:
+	// 1. Scale the image
 	op.GeoM.Scale(donutScale, donutScale)
+	
+	// 2. Translate to center the rotation point (move origin to center of scaled image)
+	op.GeoM.Translate(-g.donutWidth/2, -g.donutHeight/2)
+	
+	// 3. Rotate around the origin (which is now at the center)
+	op.GeoM.Rotate(g.rotation)
+	
+	// 4. Translate back and then to final position
+	op.GeoM.Translate(g.donutWidth/2, g.donutHeight/2)
 	op.GeoM.Translate(g.x, g.y)
+	
 	screen.DrawImage(g.donutImage, op)
 }
 
@@ -97,15 +115,17 @@ func main() {
 
 	// Start with default dimensions - Layout method will update with actual window size
 	game := &Game{
-		donutImage:   donutImage,
-		donutWidth:   donutWidth,
-		donutHeight:  donutHeight,
-		x:            100,
-		y:            100,
-		vx:           3,
-		vy:           2,
-		screenWidth:  800, // Default width, will be updated by Layout
-		screenHeight: 600, // Default height, will be updated by Layout
+		donutImage:    donutImage,
+		donutWidth:    donutWidth,
+		donutHeight:   donutHeight,
+		x:             100,
+		y:             100,
+		vx:            3,
+		vy:            2,
+		rotation:      0,
+		rotationSpeed: 0.02, // Adjust this value to control rotation speed
+		screenWidth:   800,  // Default width, will be updated by Layout
+		screenHeight:  600,  // Default height, will be updated by Layout
 	}
 
 	// Don't set a specific window size - let it use the system default or fullscreen
