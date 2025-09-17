@@ -18,8 +18,10 @@ import (
 var donutPNG []byte
 
 const (
-	donutScale = 0.5 // Configuration: scale factor for the donut (1.0 = original size, 2.0 = double size, etc.)
-	numDonuts  = 6   // Configuration: number of donuts to display
+	donutScale    = 0.5 // Configuration: scale factor for the donut (1.0 = original size, 2.0 = double size, etc.)
+	initialDonuts = 6   // Configuration: initial number of donuts to display
+	maxDonuts     = 50  // Maximum number of donuts allowed
+	minDonuts     = 1   // Minimum number of donuts allowed
 )
 
 type Donut struct {
@@ -36,12 +38,29 @@ type Game struct {
 	donuts       []Donut
 	screenWidth  int
 	screenHeight int
+	numDonuts    int // Current number of donuts
 }
 
 func (g *Game) Update() error {
 	// Check for the escape key to exit
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		return ebiten.Termination
+	}
+
+	// Handle plus key to add more donuts
+	if inpututil.IsKeyJustPressed(ebiten.KeyEqual) || inpututil.IsKeyJustPressed(ebiten.KeyNumpadAdd) {
+		if g.numDonuts < maxDonuts {
+			g.numDonuts++
+			g.donuts = createDonuts(g.screenWidth, g.screenHeight, g.donutWidth, g.donutHeight, g.numDonuts)
+		}
+	}
+
+	// Handle minus key to remove donuts
+	if inpututil.IsKeyJustPressed(ebiten.KeyMinus) || inpututil.IsKeyJustPressed(ebiten.KeyNumpadSubtract) {
+		if g.numDonuts > minDonuts {
+			g.numDonuts--
+			g.donuts = createDonuts(g.screenWidth, g.screenHeight, g.donutWidth, g.donutHeight, g.numDonuts)
+		}
 	}
 
 	// Update each donut
@@ -74,7 +93,92 @@ func (g *Game) Update() error {
 		}
 	}
 
+	// Check for collisions between donuts
+	g.handleDonutCollisions()
+
 	return nil
+}
+
+// handleDonutCollisions checks for and resolves collisions between donuts
+func (g *Game) handleDonutCollisions() {
+	radius := g.donutWidth / 2 // Assuming width == height for circular donuts
+
+	for i := 0; i < len(g.donuts); i++ {
+		for j := i + 1; j < len(g.donuts); j++ {
+			donut1 := &g.donuts[i]
+			donut2 := &g.donuts[j]
+
+			// Calculate center positions
+			center1X := donut1.x + radius
+			center1Y := donut1.y + radius
+			center2X := donut2.x + radius
+			center2Y := donut2.y + radius
+
+			// Check if donuts are colliding
+			if g.areDonutsColliding(center1X, center1Y, center2X, center2Y, radius) {
+				g.resolveCollision(donut1, donut2, center1X, center1Y, center2X, center2Y)
+			}
+		}
+	}
+}
+
+// areDonutsColliding checks if two circular donuts are overlapping
+func (g *Game) areDonutsColliding(x1, y1, x2, y2, radius float64) bool {
+	dx := x2 - x1
+	dy := y2 - y1
+	distance := math.Sqrt(dx*dx + dy*dy)
+	return distance < (radius * 2) // Two circles collide when distance < sum of radii
+}
+
+// resolveCollision handles the physics of two donuts colliding
+func (g *Game) resolveCollision(donut1, donut2 *Donut, center1X, center1Y, center2X, center2Y float64) {
+	// Calculate collision vector
+	dx := center2X - center1X
+	dy := center2Y - center1Y
+	distance := math.Sqrt(dx*dx + dy*dy)
+
+	// Avoid division by zero
+	if distance == 0 {
+		dx = 1
+		dy = 0
+		distance = 1
+	}
+
+	// Normalize collision vector
+	nx := dx / distance
+	ny := dy / distance
+
+	// Separate the donuts so they don't overlap
+	radius := g.donutWidth / 2
+	overlap := (radius * 2) - distance
+	separationX := nx * overlap * 0.5
+	separationY := ny * overlap * 0.5
+
+	donut1.x -= separationX
+	donut1.y -= separationY
+	donut2.x += separationX
+	donut2.y += separationY
+
+	// Calculate relative velocity
+	dvx := donut2.vx - donut1.vx
+	dvy := donut2.vy - donut1.vy
+
+	// Calculate relative velocity along collision normal
+	dvn := dvx*nx + dvy*ny
+
+	// Don't resolve if velocities are separating
+	if dvn > 0 {
+		return
+	}
+
+	// Collision impulse (assuming equal mass and elastic collision)
+	impulse := 2 * dvn / 2 // divided by 2 because we have 2 objects of equal mass
+
+	// Update velocities
+	donut1.vx += impulse * nx
+	donut1.vy += impulse * ny
+	donut2.vx -= impulse * nx
+	donut2.vy -= impulse * ny
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
@@ -108,7 +212,7 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 		g.screenWidth = outsideWidth
 		g.screenHeight = outsideHeight
 		// Recreate donuts with new screen dimensions
-		g.donuts = createDonuts(outsideWidth, outsideHeight, g.donutWidth, g.donutHeight)
+		g.donuts = createDonuts(outsideWidth, outsideHeight, g.donutWidth, g.donutHeight, g.numDonuts)
 	}
 	return outsideWidth, outsideHeight
 }
@@ -121,7 +225,7 @@ func loadDonutImage() (*ebiten.Image, error) {
 	return ebiten.NewImageFromImage(img), nil
 }
 
-func createDonuts(screenWidth, screenHeight int, donutWidth, donutHeight float64) []Donut {
+func createDonuts(screenWidth, screenHeight int, donutWidth, donutHeight float64, numDonuts int) []Donut {
 	donuts := make([]Donut, numDonuts)
 
 	// Define the center area where donuts will spawn (middle 50% of screen)
@@ -199,9 +303,10 @@ func main() {
 		donutImage:   donutImage,
 		donutWidth:   donutWidth,
 		donutHeight:  donutHeight,
-		donuts:       createDonuts(screenWidth, screenHeight, donutWidth, donutHeight),
+		donuts:       createDonuts(screenWidth, screenHeight, donutWidth, donutHeight, initialDonuts),
 		screenWidth:  screenWidth,
 		screenHeight: screenHeight,
+		numDonuts:    initialDonuts,
 	}
 
 	// Don't set a specific window size - let it use the system default or fullscreen
