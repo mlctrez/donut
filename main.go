@@ -249,13 +249,13 @@ func (g *Game) drawTimer(screen *ebiten.Image) {
 	timerText := fmt.Sprintf("%03d:%02d:%02d", hours, minutes, seconds)
 	
 	// Calculate text dimensions with the base font
-	baseFontHeight := 17 // basicfont.Face7x13 height
+	baseFontHeight := 13 // basicfont.Face7x13 height
 	baseFontWidth := 7   // basicfont.Face7x13 character width
 	textWidth := len(timerText) * baseFontWidth
 	textHeight := baseFontHeight
 	
 	// Create a temporary image to draw the text at base size
-	tempImg := ebiten.NewImage(textWidth, textHeight)
+	tempImg := ebiten.NewImage(textWidth, textHeight+4)
 	tempImg.Fill(color.RGBA{0, 0, 0, 0}) // Transparent background
 	
 	// Draw text to temporary image
