@@ -26,18 +26,18 @@ const (
 	initialDonuts = 6   // Configuration: initial number of donuts to display
 	maxDonuts     = 50  // Maximum number of donuts allowed
 	minDonuts     = 1   // Minimum number of donuts allowed
-	
+
 	// Timer display configuration
-	timerFontSize = 64    // Configuration: font size for the timer display
-	timerPosX     = 30    // Configuration: X position of timer from left edge
-	timerPosY     = 30    // Configuration: Y position of timer from top edge
+	timerFontSize = 64 // Configuration: font size for the timer display
+	timerPosX     = 30 // Configuration: X position of timer from left edge
+	timerPosY     = 30 // Configuration: Y position of timer from top edge
 )
 
 // Timer start time configuration - adjust these values to set the exact start time
 var (
 	// Configuration: Set the exact date and time when the timer started
 	// Format: time.Date(year, month, day, hour, minute, second, nanosecond, location)
-	timerStartTime = time.Date(2025, 9, 9, 21, 5, 45, 0, time.UTC) // September 9, 2024 at 12:00:00 UTC
+	timerStartTime = time.Date(2025, 9, 9, 21, 5, 45, 0, time.UTC)
 )
 
 type Donut struct {
@@ -55,7 +55,7 @@ type Game struct {
 	screenWidth  int
 	screenHeight int
 	numDonuts    int // Current number of donuts
-	
+
 	// Timer configuration - configurable start date/time for elapsed time display
 	timerStartTime time.Time // Configuration: the exact time when the timer started
 }
@@ -223,7 +223,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 		screen.DrawImage(g.donutImage, op)
 	}
-	
+
 	// Draw the elapsed time timer in upper left corner
 	g.drawTimer(screen)
 }
@@ -233,42 +233,70 @@ func (g *Game) drawTimer(screen *ebiten.Image) {
 	// Calculate elapsed time since the configured start time
 	now := time.Now()
 	elapsed := now.Sub(g.timerStartTime)
-	
+
 	// If start time is in the future, show 000:00:00
 	if elapsed < 0 {
 		elapsed = 0
 	}
-	
+
 	// Convert to hours, minutes, and seconds
 	totalSeconds := int(elapsed.Seconds())
 	hours := totalSeconds / 3600
 	minutes := (totalSeconds % 3600) / 60
 	seconds := totalSeconds % 60
-	
+
 	// Format as HHH:MM:SS (3-digit hours, 2-digit minutes and seconds)
 	timerText := fmt.Sprintf("%03d:%02d:%02d", hours, minutes, seconds)
-	
+
+	// Calculate days, hours, and minutes for human-readable format
+	totalMinutes := int(elapsed.Minutes())
+	days := totalMinutes / (24 * 60)
+	remainingMinutes := totalMinutes % (24 * 60)
+	displayHours := remainingMinutes / 60
+	displayMinutes := remainingMinutes % 60
+
+	// Format human-readable line
+	var humanText string
+	if days > 0 {
+		humanText = fmt.Sprintf("%dd %dh %dm", days, displayHours, displayMinutes)
+	} else if displayHours > 0 {
+		humanText = fmt.Sprintf("%dh %dm", displayHours, displayMinutes)
+	} else {
+		humanText = fmt.Sprintf("%dm", displayMinutes)
+	}
+
 	// Calculate text dimensions with the base font
 	baseFontHeight := 13 // basicfont.Face7x13 height
 	baseFontWidth := 7   // basicfont.Face7x13 character width
-	textWidth := len(timerText) * baseFontWidth
-	textHeight := baseFontHeight
 	
-	// Create a temporary image to draw the text at base size
-	tempImg := ebiten.NewImage(textWidth, textHeight+4)
+	// Calculate dimensions for both lines
+	line1Width := len(timerText) * baseFontWidth
+	line2Width := len(humanText) * baseFontWidth
+	maxWidth := line1Width
+	if line2Width > maxWidth {
+		maxWidth = line2Width
+	}
+	
+	textHeight := baseFontHeight * 2 + 4 // Two lines plus some spacing
+
+	// Create a temporary image to draw both lines at base size
+	tempImg := ebiten.NewImage(maxWidth, textHeight+4)
 	tempImg.Fill(color.RGBA{0, 0, 0, 0}) // Transparent background
-	
-	// Draw text to temporary image
+
+	// Draw first line (HHH:MM:SS format)
 	text.Draw(tempImg, timerText, basicfont.Face7x13, 0, baseFontHeight, color.RGBA{50, 150, 50, 255})
 	
+	// Draw second line (human-readable format)
+	text.Draw(tempImg, humanText, basicfont.Face7x13, 0, baseFontHeight*2+2, color.RGBA{50, 150, 50, 255})
+
 	// Calculate scale factor based on desired font size
 	scaleFactor := float64(timerFontSize) / float64(baseFontHeight)
-	
+
 	// Draw the scaled text to the screen
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Scale(scaleFactor, scaleFactor)
 	op.GeoM.Translate(float64(timerPosX), float64(timerPosY))
-	
+
 	screen.DrawImage(tempImg, op)
 }
 
@@ -352,6 +380,9 @@ func createDonuts(screenWidth, screenHeight int, donutWidth, donutHeight float64
 
 func main() {
 
+	//fmt.Println(timerStartTime.Local().Format(time.RFC850))
+	//os.Exit(0)
+
 	donutImage, err := loadDonutImage()
 	if err != nil {
 		log.Fatal("Failed to load donut.png:", err)
@@ -364,7 +395,7 @@ func main() {
 
 	// Start with default dimensions - Layout method will update with actual window size
 	screenWidth, screenHeight := 800, 600 // Default dimensions
-	
+
 	game := &Game{
 		donutImage:     donutImage,
 		donutWidth:     donutWidth,
